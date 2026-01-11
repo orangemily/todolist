@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>全景待办 - 统一时间视图</title>
+  <style>
+    :root {
+      --primary-color: #3b82f6;
+      --primary-hover: #2563eb;
+      --bg-color: #f3f4f6;
+      --card-bg: #ffffff;
+      --text-main: #1f2937;
+      --text-secondary: #6b7280;
+      --danger-color: #ef4444;
+      --success-color: #10b981;
+      --border-radius: 16px;
+      --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+      --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* 主题色切换 */
+    body[data-scope="daily"] {
+      --primary-color: #3b82f6;
+      --primary-hover: #2563eb;
+    }
+
+    body[data-scope="weekly"] {
+      --primary-color: #8b5cf6;
+      --primary-hover: #7c3aed;
+    }
+
+    body[data-scope="yearly"] {
+      --primary-color: #f59e0b;
+      --primary-hover: #d97706;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+
+    .app-container {
+      width: 100%;
+      max-width: 520px;
+      background: var(--card-bg);
+      border-radius: var(--border-radius);
+      box-shadow: var(--shadow-md);
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* --- 头部 --- */
+    header {
+      padding: 24px;
+      background: linear-gradient(135deg, var(--primary-color), rgba(255, 255, 255, 0.2));
+      color: white;
+      transition: background 0.5s ease;
+    }
+
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    h1 {
+      font-size: 1.6rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+
+    .date-badge {
+      background: rgba(255, 255, 255, 0.2);
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      backdrop-filter: blur(4px);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      font-weight: 500;
+    }
+
+    /* 日期选择器 */
+    input[type="date"] {
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      padding: 5px 10px;
+      border-radius: 20px;
+      font-family: inherit;
+      font-size: 0.85rem;
+      outline: none;
+      cursor: pointer;
+      -webkit-appearance: none;
+    }
+
+    input[type="date"]::-webkit-calendar-picker-indicator {
+      filter: invert(1);
+      cursor: pointer;
+    }
+
+    .progress-wrapper {
+      background: rgba(0, 0, 0, 0.1);
+      height: 8px;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 10px;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: #fff;
+      width: 0%;
+      transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .progress-label {
+      font-size: 0.75rem;
+      margin-top: 6px;
+      opacity: 0.9;
+      text-align: right;
+    }
+
+    /* --- Tabs --- */
+    .scope-tabs {
+      display: flex;
+      background: #f9fafb;
+      padding: 8px 16px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .tab-btn {
+      flex: 1;
+      background: none;
+      border: none;
+      padding: 10px 0;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      cursor: pointer;
+      position: relative;
+      transition: color 0.3s;
+    }
+
+    .tab-btn:hover {
+      color: var(--text-main);
+    }
+
+    .tab-btn.active {
+      color: var(--primary-color);
+    }
+
+    .tab-btn.active::after {
+      content: '';
+      position: absolute;
+      bottom: -9px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 40%;
+      height: 3px;
+      background-color: var(--primary-color);
+      border-radius: 3px 3px 0 0;
+      transition: background 0.3s;
+    }
+
+    /* --- Input --- */
+    .input-section {
+      padding: 20px 24px;
+      display: flex;
+      gap: 12px;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      padding: 14px 16px;
+      border: 2px solid #e5e7eb;
+      border-radius: 12px;
+      font-size: 1rem;
+      outline: none;
+      transition: var(--transition);
+    }
+
+    input[type="text"]:focus {
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .btn-add {
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      padding: 0 20px;
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: var(--transition);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .btn-add:hover {
+      background-color: var(--primary-hover);
+      transform: translateY(-2px);
+    }
+
+    /* --- Filters --- */
+    .status-filters {
+      display: flex;
+      padding: 0 24px;
+      gap: 16px;
+      margin-bottom: 10px;
+    }
+
+    .status-btn {
+      font-size: 0.85rem;
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      padding-bottom: 4px;
+      border-bottom: 2px solid transparent;
+    }
+
+    .status-btn.active {
+      color: var(--text-main);
+      border-bottom-color: var(--primary-color);
+      font-weight: 600;
+    }
+
+    /* --- List --- */
+    .todo-list {
+      list-style: none;
+      max-height: 400px;
+      overflow-y: auto;
+      padding: 0 24px 20px 24px;
+    }
+
+    .todo-item {
+      background: #fff;
+      border: 1px solid #f3f4f6;
+      margin-bottom: 10px;
+      padding: 14px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      transition: var(--transition);
+      animation: slideUp 0.3s ease;
+    }
+
+    .todo-item:hover {
+      border-color: #e5e7eb;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
+      transform: translateY(-1px);
+    }
+
+    .custom-checkbox {
+      width: 20px;
+      height: 20px;
+      border: 2px solid #d1d5db;
+      border-radius: 6px;
+      margin-right: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+
+    .todo-item.done .custom-checkbox {
+      background-color: var(--success-color);
+      border-color: var(--success-color);
+    }
+
+    .custom-checkbox svg {
+      width: 12px;
+      height: 12px;
+      fill: white;
+      display: none;
+    }
+
+    .todo-item.done .custom-checkbox svg {
+      display: block;
+    }
+
+    .todo-content {
+      flex: 1;
+      font-size: 1rem;
+      color: var(--text-main);
+      transition: 0.2s;
+      word-break: break-all;
+    }
+
+    .todo-item.done .todo-content {
+      text-decoration: line-through;
+      color: #9ca3af;
+    }
+
+    .actions {
+      opacity: 0;
+      transition: opacity 0.2s;
+      margin-left: 8px;
+      display: flex;
+    }
+
+    .todo-item:hover .actions {
+      opacity: 1;
+    }
+
+    .action-icon {
+      padding: 6px;
+      border-radius: 6px;
+      cursor: pointer;
+      color: var(--text-secondary);
+      transition: 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .action-icon:hover {
+      background-color: #f3f4f6;
+      color: var(--primary-color);
+    }
+
+    .action-icon.delete:hover {
+      background-color: #fee2e2;
+      color: var(--danger-color);
+    }
+
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 40px 0;
+      color: var(--text-secondary);
+      display: none;
+    }
+
+    .empty-state svg {
+      width: 60px;
+      height: 60px;
+      margin-bottom: 12px;
+      color: #d1d5db;
+    }
+
+    /* Toast */
+    #toast-box {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+      z-index: 100;
+    }
+
+    .toast {
+      background: #333;
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 30px;
+      font-size: 0.9rem;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      opacity: 0;
+      transform: translateY(20px);
+      animation: toastIn 0.3s forwards;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes toastIn {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes fadeOut {
+      to {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+    }
+
+    .todo-list::-webkit-scrollbar {
+      width: 5px;
+    }
+
+    .todo-list::-webkit-scrollbar-thumb {
+      background: #e5e7eb;
+      border-radius: 3px;
+    }
+  </style>
+</head>
+
+<body data-scope="daily">
+
+  <div class="app-container">
+    <header>
+      <div class="header-top">
+        <h1 id="page-title">今日待办</h1>
+        <!-- 日期选择器：统一的时间控制中心 -->
+        <input type="date" id="date-picker" class="date-badge">
+        <!-- 辅助文本：用于显示周期范围 -->
+        <div id="date-range-display" class="date-badge"
+          style="display:none; border:none; background:none; padding:0; text-align:right;"></div>
+      </div>
+      <div class="progress-wrapper">
+        <div class="progress-fill" id="progress-bar"></div>
+      </div>
+      <div class="progress-label" id="progress-text">0% 完成</div>
+    </header>
+
+    <nav class="scope-tabs">
+      <button class="tab-btn active" data-scope="daily">每日</button>
+      <button class="tab-btn" data-scope="weekly">本周</button>
+      <button class="tab-btn" data-scope="yearly">年度</button>
+    </nav>
+
+    <section class="input-section">
+      <input type="text" id="todo-input" placeholder="添加任务..." autocomplete="off">
+      <button class="btn-add" id="add-btn">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+          stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        添加
+      </button>
+    </section>
+
+    <div class="status-filters">
+      <button class="status-btn active" data-filter="all">全部</button>
+      <button class="status-btn" data-filter="active">未完成</button>
+      <button class="status-btn" data-filter="completed">已完成</button>
+    </div>
+
+    <ul class="todo-list" id="todo-list"></ul>
+
+    <div class="empty-state" id="empty-state">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
+        stroke-linejoin="round">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+      </svg>
+      <p id="empty-text">这里空空如也。</p>
+    </div>
+  </div>
+
+  <div id="toast-box"></div>
+
+  <script>
+    // --- State ---
+    const STATE = {
+      tasks: [],
+      currentScope: 'daily',
+      currentFilter: 'all'
+    };
+
+    // --- DOM ---
+    const els = {
+      body: document.body,
+      input: document.getElementById('todo-input'),
+      addBtn: document.getElementById('add-btn'),
+      list: document.getElementById('todo-list'),
+      emptyState: document.getElementById('empty-state'),
+      emptyText: document.getElementById('empty-text'),
+      title: document.getElementById('page-title'),
+      datePicker: document.getElementById('date-picker'),
+      dateRangeDisplay: document.getElementById('date-range-display'),
+      progressBar: document.getElementById('progress-bar'),
+      progressText: document.getElementById('progress-text'),
+      scopeTabs: document.querySelectorAll('.tab-btn'),
+      filterBtns: document.querySelectorAll('.status-btn'),
+      toastBox: document.getElementById('toast-box')
+    };
+
+    // --- Init ---
+    function init() {
+      loadData();
+      bindEvents();
+      initDatePicker();
+      updateUIContext();
+      render();
+    }
+
+    // --- Data ---
+    function loadData() {
+      const raw = localStorage.getItem('todo_final_v1');
+      if (raw) STATE.tasks = JSON.parse(raw);
+    }
+
+    function saveData() {
+      localStorage.setItem('todo_final_v1', JSON.stringify(STATE.tasks));
+      updateProgress();
+    }
+
+    // 获取 ISO 周数
+    function getISOWeek(date) {
+      const d = new Date(date);
+      d.setHours(0, 0, 0, 0);
+      d.setDate(d.getDate() + 4 - (d.getDay() || 7));
+      const yearStart = new Date(d.getFullYear(), 0, 1);
+      const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+      return weekNo;
+    }
+
+    // 获取一周的起止日期
+    function getWeekRange(dateStr) {
+      const d = new Date(dateStr);
+      const day = d.getDay() || 7; // 周日为7
+      if (day !== 1) d.setHours(-24 * (day - 1)); // 回到周一
+      const mon = new Date(d);
+      const sun = new Date(d);
+      sun.setDate(mon.getDate() + 6);
+
+      const fmt = (date) => `${date.getMonth() + 1}/${date.getDate()}`;
+      return `${fmt(mon)} - ${fmt(sun)}`;
+    }
+
+    function addTask(text) {
+      // 统一逻辑：无论在哪个视图，都直接读取日期选择器的日期作为创建时间
+      // 这样保证了：你在哪个日期添加，任务就属于哪天（自然也属于该周、该年）
+      const dateStr = els.datePicker.value;
+      const [year, month, day] = dateStr.split('-').map(num => parseInt(num));
+
+      // 设为中午12点防止时区问题
+      const createdTime = new Date(year, month - 1, day, 12, 0, 0).toISOString();
+
+      const task = {
+        id: Date.now(),
+        text: text,
+        completed: false,
+        scope: STATE.currentScope,
+        createdAt: createdTime
+      };
+      STATE.tasks.unshift(task);
+      saveData();
+      render();
+      showToast('添加成功');
+    }
+
+    function toggleTask(id) {
+      const task = STATE.tasks.find(t => t.id === id);
+      if (task) {
+        task.completed = !task.completed;
+        saveData();
+        render();
+      }
+    }
+
+    function deleteTask(id) {
+      STATE.tasks = STATE.tasks.filter(t => t.id !== id);
+      saveData();
+      render();
+      showToast('已删除');
+    }
+
+    // --- UI ---
+    function initDatePicker() {
+      const pad = (n) => n < 10 ? '0' + n : n;
+      const formatDate = (date) => {
+        return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate());
+      };
+      els.datePicker.value = formatDate(new Date());
+      els.datePicker.addEventListener('change', () => render());
+    }
+
+    function updateUIContext() {
+      els.body.setAttribute('data-scope', STATE.currentScope);
+
+      // 根据视图显示/隐藏日期选择器和文本提示
+      if (STATE.currentScope === 'daily') {
+        els.datePicker.style.display = 'block';
+        els.dateRangeDisplay.style.display = 'none';
+        els.title.textContent = '每日待办';
+      } else if (STATE.currentScope === 'weekly') {
+        // 周视图：保留选择器以方便切换周，但加上范围文本
+        els.datePicker.style.display = 'block';
+        els.dateRangeDisplay.style.display = 'block';
+        els.dateRangeDisplay.textContent = getWeekRange(els.datePicker.value);
+        els.title.textContent = '每周计划';
+      } else {
+        // 年视图：隐藏选择器太突兀，保留选择器选年份即可
+        els.datePicker.style.display = 'block';
+        els.dateRangeDisplay.style.display = 'none';
+        els.title.textContent = '年度目标';
+      }
+
+      let ph = '';
+      switch (STATE.currentScope) {
+        case 'daily': ph = '添加任务...'; break;
+        case 'weekly': ph = '本周重点...'; break;
+        case 'yearly': ph = '年度目标...'; break;
+      }
+      els.input.placeholder = ph;
+    }
+
+    function render() {
+      // 1. 按 Scope 过滤
+      let tasksToShow = STATE.tasks.filter(t => t.scope === STATE.currentScope);
+
+      // 2. 按时间过滤 (根据 DatePicker 的值)
+      const refDateStr = els.datePicker.value; // "YYYY-MM-DD"
+      const refDate = new Date(refDateStr);
+
+      if (STATE.currentScope === 'daily') {
+        // 日视图：完全匹配日期
+        tasksToShow = tasksToShow.filter(t => {
+          return t.createdAt.substring(0, 10) === refDateStr;
+        });
+      } else if (STATE.currentScope === 'weekly') {
+        // 周视图：匹配 ISO 周数
+        const currentWeek = getISOWeek(refDate);
+        // 检查年份（防止跨年周数重叠）
+        const currentYear = refDate.getFullYear();
+
+        tasksToShow = tasksToShow.filter(t => {
+          const tDate = new Date(t.createdAt);
+          return getISOWeek(tDate) === currentWeek && tDate.getFullYear() === currentYear;
+        });
+        // 更新显示的周范围
+        els.dateRangeDisplay.textContent = getWeekRange(refDateStr);
+      } else {
+        // 年视图：匹配年份
+        const currentYear = refDate.getFullYear();
+        tasksToShow = tasksToShow.filter(t => {
+          return new Date(t.createdAt).getFullYear() === currentYear;
+        });
+      }
+
+      updateProgress(tasksToShow);
+
+      // 3. 状态过滤
+      if (STATE.currentFilter === 'active') tasksToShow = tasksToShow.filter(t => !t.completed);
+      if (STATE.currentFilter === 'completed') tasksToShow = tasksToShow.filter(t => t.completed);
+
+      els.list.innerHTML = '';
+
+      if (tasksToShow.length === 0) {
+        els.emptyState.style.display = 'block';
+        els.emptyText.textContent =
+          STATE.currentScope === 'daily' ? '当天没有记录' :
+            STATE.currentScope === 'weekly' ? '本周暂无计划' : '本年暂无目标';
+      } else {
+        els.emptyState.style.display = 'none';
+        tasksToShow.forEach(task => {
+          const li = document.createElement('li');
+          li.className = `todo-item ${task.completed ? 'done' : ''}`;
+          li.innerHTML = `
+                        <div class="custom-checkbox" onclick="toggleTask(${task.id})">
+                            <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        </div>
+                        <span class="todo-content" ondblclick="editPrompt(${task.id})">${escapeHtml(task.text)}</span>
+                        <div class="actions">
+                            <div class="action-icon" onclick="editPrompt(${task.id})">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                            </div>
+                            <div class="action-icon delete" onclick="deleteTask(${task.id})">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                            </div>
+                        </div>
+                    `;
+          els.list.appendChild(li);
+        });
+      }
+    }
+
+    function updateProgress(currentTasks = null) {
+      const tasks = currentTasks || [];
+      const total = tasks.length;
+      const completed = tasks.filter(t => t.completed).length;
+      const percent = total === 0 ? 0 : Math.round((completed / total) * 100);
+      els.progressBar.style.width = `${percent}%`;
+      els.progressText.textContent = `${percent}% 完成`;
+    }
+
+    function bindEvents() {
+      els.scopeTabs.forEach(btn => {
+        btn.addEventListener('click', () => {
+          els.scopeTabs.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          STATE.currentScope = btn.dataset.scope;
+          STATE.currentFilter = 'all';
+          els.filterBtns.forEach(b => b.classList.remove('active'));
+          els.filterBtns[0].classList.add('active');
+          updateUIContext();
+          render();
+        });
+      });
+
+      els.filterBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          els.filterBtns.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          STATE.currentFilter = btn.dataset.filter;
+          render();
+        });
+      });
+
+      els.addBtn.addEventListener('click', () => {
+        const text = els.input.value.trim();
+        if (text) {
+          addTask(text);
+          els.input.value = '';
+          els.input.focus();
+        } else {
+          showToast('请输入内容', 'error');
+        }
+      });
+
+      els.input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') els.addBtn.click();
+      });
+    }
+
+    // --- Helpers ---
+    window.editPrompt = function (id) {
+      const task = STATE.tasks.find(t => t.id === id);
+      if (!task) return;
+      const newText = prompt("编辑任务内容:", task.text);
+      if (newText !== null && newText.trim() !== "") {
+        task.text = newText.trim();
+        saveData();
+        render();
+      }
+    };
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+    function showToast(msg, type = 'success') {
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.textContent = msg;
+      if (type === 'error') toast.style.background = '#ef4444';
+      els.toastBox.appendChild(toast);
+      setTimeout(() => {
+        toast.style.animation = 'fadeOut 0.3s forwards';
+        toast.addEventListener('animationend', () => toast.remove());
+      }, 3000);
+    }
+    window.toggleTask = toggleTask;
+    window.deleteTask = deleteTask;
+    init();
+  </script>
+</body>
+
+</html>
